@@ -3,8 +3,6 @@
 from netaddr import *
 import sys
 import boto3
-import pprint
-import socket
 
 
 def getAllPossibleIPs(cidr):
