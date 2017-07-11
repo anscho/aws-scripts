@@ -1,0 +1,42 @@
+#!/usr/bin/python
+
+from netaddr import *
+import sys
+import boto3
+import pprint
+import socket
+
+
+def getAllPossibleIPs(cidr):
+    return sorted(IPNetwork(cidr))
+
+def getUsedIps(subnetId):
+    client = boto3.client('ec2')
+    interfaces = client.describe_network_interfaces(Filters=[
+        {'Name': 'subnet-id', 'Values': [subnetId]}
+    ])['NetworkInterfaces']
+    return set([IPAddress(x['PrivateIpAddress']) for x in interfaces])
+
+def getCidrFromSubnet(subnetId):
+    ec2 = boto3.resource('ec2')
+    return ec2.Subnet(subnetId).cidr_block
+
+
+def main():
+    subnetId = sys.argv[1:][0]
+    cidr = getCidrFromSubnet(subnetId)
+    allIps = getAllPossibleIPs(cidr)
+    usedIps = getUsedIps(subnetId)
+    ipStrings = [x.format() for x in sorted(set(allIps) - usedIps)]
+    print '          CIDR :' , cidr
+    print '    CIDR Range :' , allIps[0].format() , '-' , allIps[-1].format()
+    print 'Total IP Count :' , len(allIps)
+    print ' Free IP Count :' , len(ipStrings)
+    print '-' * 50
+    for ip in ipStrings:
+        print ip
+
+if __name__ == '__main__':
+    main()
+
+
