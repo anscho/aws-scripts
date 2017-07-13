@@ -1,0 +1,42 @@
+#!/usr/bin/python
+
+import sys
+import boto3
+import pprint
+from itertools import chain
+import subprocess
+
+def instanceResultToDict(instance):
+    iid = instance['InstanceId']
+    typ = instance['InstanceType']
+    pip = instance['PrivateIpAddress']
+    return {'id': iid, 'type': typ, 'ip': pip}
+
+def checkGor(instance):
+    print instance['id'], "-", instance['ip']
+    print "-" * 80
+    subprocess.call(["ssh", "-t", "-i", "~/.ssh/pagebuilder.pem", "centos@" + instance['ip'], "ps aux | grep 'gor'"])
+    print "=" * 80
+
+def main():
+    elbname = sys.argv[1:][0]
+    client = boto3.client('elb')
+    result = client.describe_load_balancers(LoadBalancerNames=[elbname])['LoadBalancerDescriptions'][0]
+    instances = result['Instances']
+    ids = [x['InstanceId'] for x in instances]
+
+    client = boto3.client('ec2')
+    result = client.describe_instances(Filters=[{'Name':'instance-id', 'Values': ids}])
+
+    instances = [instanceResultToDict(y)
+                    for x in result['Reservations']
+                    for y in x['Instances']
+                ]
+
+    for i in instances:
+        checkGor(i)
+
+
+if __name__ == '__main__':
+    main()
+
